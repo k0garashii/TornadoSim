@@ -11,14 +11,20 @@ public enum GridType
 public class Tornado : MonoBehaviour
 {
     public ParticleSystem tornadoParticles;
+    private ParticleSystem.Particle[] particles;
     public List<Rigidbody> elements = new List<Rigidbody>();
     public GameObject flowFieldPrefab;
     [Header("Tornado Parameters")]
     public float tornadoStrength = 20f;
+    public float turbulenceStrength = 2f; // Intensité de la turbulence
     public float a = 0.5f; // Aspiration
-    public float gamma = 20f; // Puissance de rotation
     public float nu = 0.1f; // Viscosité cinématique
-    private ParticleSystem.Particle[] particles;
+    [Header("Tornado Shape Parameters")]
+    public float gammaBase = 10f;   // près du sol
+    public float gammaTop = 40f;    // en haut
+    public float gammaExponent = 1.5f; // forme du cône
+    public float tornadoHeight = 30f;
+    public GameObject ceilingHeight;
     [Header("FlowField Parameters")]
     public GridType gridType = GridType.Cube;
     public int size = 5;
@@ -48,6 +54,7 @@ public class Tornado : MonoBehaviour
         }
         lastResolution = resolution;
         DrawFloawField();
+        ceilingHeight.transform.position = new Vector3(0, tornadoHeight, 0);
     }
 
     void FixedUpdate()
@@ -75,17 +82,39 @@ public class Tornado : MonoBehaviour
     {
         Vector3 transformPos = transform.position;
         float z = elementPos.y - transformPos.y;
+        
         elementPos.y = 0;
         transformPos.y = 0;
+        
         float dist = Vector3.Distance(elementPos, transformPos);
-        Vector3 Radial = (elementPos - transformPos).normalized;
-        Vector3 Tangential = Vector3.Cross(Vector3.up, Radial).normalized;
-            
-        float Vr = -a * dist;
-        float Vtheta = gamma / (2 * Mathf.PI * dist) * (1 - Mathf.Exp(- (a * dist * dist) / (2 * nu)));
-        float Vz = 2 * a * z;
+        
+        Vector3 radial = (elementPos - transformPos).normalized;
+        Vector3 tangential = Vector3.Cross(Vector3.up, radial).normalized;
+        
+        float height = Mathf.Max(0f, z);
+        float height01 = Mathf.Clamp01(height / tornadoHeight);
+        
+        float gammaAtHeight = Mathf.Lerp(
+            gammaBase, 
+            gammaTop, 
+            Mathf.Pow(height01, gammaExponent)
+        );
+        
+        float vr = -a * dist;
+        float vtheta = gammaAtHeight / (2 * Mathf.PI * dist) * (1 - Mathf.Exp(- (a * dist * dist) / (2 * nu)));
+        float vz = 2 * a * z;
 
-        return Vr * Radial + Vtheta * Tangential + Vz * Vector3.up;
+        Vector3 baseVelocity = vr * radial + vtheta * tangential + vz * Vector3.up;
+        
+        float t = Time.time * 0.5f;
+        Vector3 noise = new Vector3(
+            Mathf.PerlinNoise(elementPos.x + t, elementPos.y) - 0.5f,
+            0,
+            Mathf.PerlinNoise(elementPos.z, elementPos.y + t) - 0.5f
+        );
+        noise *= turbulenceStrength;
+        
+        return baseVelocity + noise;
     }
 
     private void DrawFloawField()
