@@ -167,9 +167,14 @@ MonoBehaviour:
   tornadoParticles: {fileID: 2027836443}
   elements:
   - {fileID: 606166444}
+  flowFieldPrefab: {fileID: 3893906014614483904, guid: 420fe5d4b131cb1498a33d6b15c66de2, type: 3}
+  tornadoStrength: 20
   a: 0.57
   gamma: 60
   nu: 0.1
+  gridType: 1
+  size: 5
+  resolution: 4
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
